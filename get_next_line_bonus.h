@@ -6,7 +6,7 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/06/03 08:53:47 by graja             #+#    #+#             */
-/*   Updated: 2021/06/12 09:11:38 by graja            ###   ########.fr       */
+/*   Updated: 2021/06/19 17:20:25 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -19,15 +19,11 @@
 #  define BUFFER_SIZE 32
 # endif
 
-# ifndef MAX_FD
-#  define MAX_FD 999
-# endif
-
 int		get_next_line(int fd, char **line);
 void	ft_bzero(void *s, size_t n);
 char	*ft_strchr(const char *s, int c);
 void	*ft_calloc(size_t nmemb, size_t size);
 size_t	ft_strlcat(char *dst, const char *src, size_t dstsize);
-size_t	ft_strlen(const char *s);
+size_t	ft_strlen(const char *s, int flag);
 
 #endif

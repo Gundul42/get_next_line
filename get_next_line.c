@@ -6,28 +6,32 @@
 /*   By: graja <graja@student.42wolfsburg.de>       +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
 /*   Created: 2021/06/03 08:48:09 by graja             #+#    #+#             */
-/*   Updated: 2021/06/12 10:30:36 by graja            ###   ########.fr       */
+/*   Updated: 2021/06/20 08:40:31 by graja            ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
+/* We are using a special ft_strlen here. It uses the flags 0 and 1.
+ * 0 means ft_strlen like in the definition, but calling with the flag
+ * 1 means, it will count until '\n' OR '\0'.
+*/
+
 #include "get_next_line.h"
 
-/* This function returns the length of a string until the 
- * next '\0' or '\n'
+/* This function gets sure that *line is valid and that in case of EOF
+ * the buffer[fd] is freed to prevent memory leaks.
 */
 
 static
-int	ft_find_cr(char *ptr)
+int	ft_check_and_free(char **line, char **ptr, int err)
 {
-	int	i;
-
-	i = 0;
-	while (*ptr && (*ptr != '\n'))
+	if (!*line)
+		*line = ft_calloc(1, sizeof(char));
+	if (err == 0)
 	{
-		ptr++;
-		i++;
+		free(*ptr);
+		*ptr = NULL;
 	}
-	return (i);
+	return (0);
 }
 
 /* This function is doing the hard copy work, it allocates the
@@ -73,11 +77,11 @@ int	ft_handle_cr(char **line, char *ptr)
 	int		len;
 	int		i;
 
-	len = ft_find_cr(ptr);
+	len = ft_strlen(ptr, 1);
 	if (!*line)
 		i = ft_do_copy(line, ptr, len);
 	else
-		i = ft_do_copy(line, ptr, ft_strlen(*line) + len);
+		i = ft_do_copy(line, ptr, ft_strlen(*line, 0) + len);
 	if (i < 0)
 		return (i);
 	len++;
@@ -91,7 +95,11 @@ int	ft_handle_cr(char **line, char *ptr)
 	return (1);
 }
 
-/* easy work, no '\n' found, so copy in whole and set buffer to 0 */
+/* easy work, no '\n' found, so copy in whole and set buffer to 0
+ * after work is done buffer is filled with zeros because in the
+ * case of next read EOF is reached, maybe not the whole BUFFER_SIZE
+ * would be read and so it could contain old information in it's tail.
+*/
 
 static
 int	ft_copy_content(char **line, char *ptr)
@@ -99,51 +107,48 @@ int	ft_copy_content(char **line, char *ptr)
 	int	err;
 	int	len;
 
-	len = ft_strlen(ptr);
+	len = ft_strlen(ptr, 0);
 	if (!*line)
 		err = ft_do_copy(line, ptr, len);
 	else
-		err = ft_do_copy(line, ptr, len + ft_strlen(*line));
+		err = ft_do_copy(line, ptr, len + ft_strlen(*line, 0));
 	if (err > 0)
 		ft_bzero(ptr, len);
 	return (err);
 }
 
 /* What was asked for. The only difference between this and the bonus part
- * is the fact that here, buffer is a pointer while in bonus, it is an array of 
- * pointers. Calloc is used to make sure that every string is NULL
- * terminated. As long as no '\n' is found it will add buffer to the string
- * which will be returned, finally adding the last part until the '\n' and
- * keeping the remains in the static variable.
- * If nothing at all was put in, it will just allocate 1 Byte which can be
- * freed by main.c
+ * is the size of the array to handle the different fds.
+ * Calloc is used to make sure that every string is NULL terminated. As long
+ * as no '\n' is found it will add buffer to the string which will be returned,
+ * finally adding the last part until the '\n' and keeping the remains in the
+ * buffer the static variable is pointing to.
 */
 
 int	get_next_line(int fd, char **line)
 {
 	int			err;
-	static char	*buffer;
+	static char	*buffer[1024];
 
 	err = 1;
-	if (fd < 0 || fd > MAX_FD || !line || BUFFER_SIZE < 1)
+	if (read(fd, NULL, 0) < 0 || !line || BUFFER_SIZE < 1)
 		return (-1);
-	if (!buffer)
-		buffer = ft_calloc(BUFFER_SIZE + 1, sizeof(char));
-	if (!buffer)
+	if (!buffer[fd])
+		buffer[fd] = ft_calloc(BUFFER_SIZE + 1, sizeof(char));
+	if (!buffer[fd])
 		return (-1);
 	if (*line)
 		*line = NULL;
-	if (ft_strlen(buffer) == 0)
-		err = read(fd, buffer, BUFFER_SIZE);
-	while (err > 0 && !(ft_strchr(buffer, '\n')))
+	if (ft_strlen(buffer[fd], 0) == 0)
+		err = read(fd, buffer[fd], BUFFER_SIZE);
+	while (err > 0 && !(ft_strchr(buffer[fd], '\n')))
 	{
-		err = ft_copy_content(line, buffer);
+		err = ft_copy_content(line, buffer[fd]);
 		if (err > 0)
-			err = read(fd, buffer, BUFFER_SIZE);
+			err = read(fd, buffer[fd], BUFFER_SIZE);
 	}
 	if (err > 0)
-		err = ft_handle_cr(line, buffer);
-	if (!*line)
-		*line = ft_calloc(1, 1);
+		err = ft_handle_cr(line, buffer[fd]);
+	ft_check_and_free(line, &buffer[fd], err);
 	return (err);
 }
